@@ -1,46 +1,125 @@
 from aiogram import Router
 from aiogram.filters import Command, CommandStart, Text
-from aiogram.types import Message
-from keyboards_package.keyboard_utils import game_kb, yes_no_kb
+from aiogram.types import Message, CallbackQuery
 from lexicon.lexicon_ru import LEXICON_RU
-from utils.utils import get_bot_choice, get_winner
+from keyboards_package.keyboard_utils import (start_keyboard, placement_keyboard, main_letter_keyboard,
+                                              main_number_keyboard, side_keyboard, reselect_coordinates_keyboard)
+
+from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, verify_shot_coordinates,
+                             translate_letter_to_number)
+from states.states import users, user_registration
 
 router: Router = Router()
 
 
-# Этот хэндлер срабатывает на команду /start
 @router.message(CommandStart())
 async def process_start_command(message: Message):
-    await message.answer(text=LEXICON_RU['/start'], reply_markup=yes_no_kb)
+    if users.get(message.from_user.id) is None:
+        user_registration(message.from_user.id)
+        await message.answer(text=LEXICON_RU['/start'], reply_markup=start_keyboard)
+    else:
+        await message.answer(text=LEXICON_RU['start_error'])  # Условий недостаточно! Добавить проверку на статус игры!!
 
 
-# Этот хэндлер срабатывает на команду /help
+@router.message(Command(commands=['rules']))
+async def process_help_command(message: Message):
+    await message.answer(text=LEXICON_RU['/help'])
+
+
 @router.message(Command(commands=['help']))
 async def process_help_command(message: Message):
-    await message.answer(text=LEXICON_RU['/help'], reply_markup=yes_no_kb)
+    await message.answer(text=LEXICON_RU['/help'])
 
 
-# Этот хэндлер срабатывает на согласие пользователя играть в игру
-@router.message(Text(text=LEXICON_RU['yes_button']))
-async def process_yes_answer(message: Message):
-    await message.answer(text=LEXICON_RU['yes'], reply_markup=game_kb)
+@router.callback_query(Text(text='start_button_pressed'))
+async def process_start_button(callback: CallbackQuery):
+    game_pole = users[callback.from_user.id].user_game_pole
+    str_game_pole = show_game_pole(game_pole)
+    await callback.message.edit_text(text=str_game_pole,
+                                     reply_markup=placement_keyboard)
 
 
-# Этот хэндлер срабатывает на отказ пользователя играть в игру
-@router.message(Text(text=LEXICON_RU['no_button']))
-async def process_no_answer(message: Message):
-    await message.answer(text=LEXICON_RU['no'])
+@router.callback_query(Text(text='auto_placement_button_pressed'))
+async def process_auto_placement_button(callback: CallbackQuery):
+    user_ship_list = users[callback.from_user.id].user_ship_list
+    place_ships(user_ship_list)
+
+    bot_ship_list = users[callback.from_user.id].bot_ship_list
+    place_ships(bot_ship_list)
+
+    user_game_pole = users[callback.from_user.id].user_game_pole
+    bot_game_pole = users[callback.from_user.id].bot_game_pole
+
+    modify_game_pole(user_game_pole, user_ship_list)
+    modify_game_pole(bot_game_pole, bot_ship_list)
+
+    str_user_game_pole = show_game_pole(user_game_pole, is_player=True)
+    await callback.message.edit_text(text=str_user_game_pole,
+                                     reply_markup=side_keyboard)
 
 
-# Этот хэндлер срабатывает на любую из игровых кнопок
-@router.message(Text(text=[LEXICON_RU['rock'],
-                           LEXICON_RU['paper'],
-                           LEXICON_RU['scissors']]))
-async def process_game_button(message: Message):
-    bot_choice = get_bot_choice()
-    await message.answer(text=f'{LEXICON_RU["bot_choice"]} '
-                              f'- {LEXICON_RU[bot_choice]}')
-    winner = get_winner(message.text, bot_choice)
-    await message.answer(text=LEXICON_RU[winner], reply_markup=yes_no_kb)
+@router.callback_query(Text(text='change_to_player_pole_button_pressed'))
+async def process_change_to_player_button(callback: CallbackQuery):
+    user_game_pole = users[callback.from_user.id].user_game_pole
+    str_user_game_pole = show_game_pole(user_game_pole, is_player=True)
+
+    await callback.message.edit_text(text=str_user_game_pole,
+                                     reply_markup=side_keyboard)
+
+
+@router.callback_query(Text(text=('change_to_bot_pole_button_pressed', 'reselect_button_pressed')))
+async def process_bot_pole_button_pressed(callback: CallbackQuery):
+    bot_game_pole = users[callback.from_user.id].bot_game_pole
+
+    str_bot_game_pole = show_game_pole(bot_game_pole)
+    str_bot_game_pole = str_bot_game_pole + '\nВыберите координаты выстрела:'
+
+    keyboard = main_number_keyboard if users[callback.from_user.id].shot_coordinates else main_letter_keyboard
+
+    await callback.message.edit_text(text=str_bot_game_pole,
+                                     reply_markup=keyboard)
+
+
+@router.callback_query(Text(endswith='_symb_pressed'))
+async def process_any_symbol_pressed(callback: CallbackQuery):
+    first_coordinate = translate_letter_to_number(callback.data.split('_')[0])
+    users[callback.from_user.id].shot_coordinates.append(first_coordinate)
+
+    await callback.message.edit_text(text=callback.message.text,
+                                     reply_markup=main_number_keyboard)
+
+
+@router.callback_query(Text(endswith='_numb_pressed'))
+async def process_any_number_pressed(callback: CallbackQuery):
+    users[callback.from_user.id].shot_coordinates.append(int(callback.data.split('_')[0]))
+
+    user_game_pole = users[callback.from_user.id].user_game_pole
+    user_shot_coordinates = users[callback.from_user.id].shot_coordinates
+
+    if verify_shot_coordinates(user_game_pole, user_shot_coordinates):
+        await callback.answer(text=LEXICON_RU['wrong_coordinates_selected'], show_alert=True)
+        users[callback.from_user.id].shot_coordinates = []
+        await callback.message.edit_text(text=callback.message.text,
+                                         reply_markup=reselect_coordinates_keyboard)
+    else:
+        await callback.message.edit_text(text='[+] Process exterminated',
+                                         reply_markup=main_number_keyboard)
+
+
+@router.message()
+async def process_unexpected_input(message: Message):
+    await message.answer(text=LEXICON_RU['wrong_input'])
+
+
+
+
+
+
+
+
+
+
+
+
 
 

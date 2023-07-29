@@ -1,33 +1,45 @@
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from lexicon.lexicon_ru import LEXICON_RU
 
-# ------- Создаем клавиатуру через ReplyKeyboardBuilder -------
+# -------------------------------First keyboard creation----------------------------------------------------------------
+start_button = InlineKeyboardButton(text='Начать игру',
+                                    callback_data='start_button_pressed')
+start_keyboard = InlineKeyboardMarkup(inline_keyboard=[[start_button]])
 
-# Создаем кнопки с ответами согласия и отказа
-button_yes: KeyboardButton = KeyboardButton(text=LEXICON_RU['yes_button'])
-button_no: KeyboardButton = KeyboardButton(text=LEXICON_RU['no_button'])
+# -----------------------------Placement keyboard creation--------------------------------------------------------------
+auto_placement_button = InlineKeyboardButton(text='Расставить корабли автоматически',
+                                             callback_data='auto_placement_button_pressed')
 
-# Инициализируем билдер для клавиатуры с кнопками "Давай" и "Не хочу!"
-yes_no_kb_builder: ReplyKeyboardBuilder = ReplyKeyboardBuilder()
+placement_keyboard = InlineKeyboardMarkup(inline_keyboard=[[auto_placement_button]])
 
-# Добавляем кнопки в билдер с параметром width=2
-yes_no_kb_builder.row(button_yes, button_no, width=2)
+# ----------------------------Main keyboard creation(letters/numbers)---------------------------------------------------
+change_to_player_pole_button = InlineKeyboardButton(text='Открыть свое поле',
+                                                    callback_data='change_to_player_pole_button_pressed')
 
-# Создаем клавиатуру с кнопками "Давай!" и "Не хочу!"
-yes_no_kb: ReplyKeyboardMarkup = yes_no_kb_builder.as_markup(
-                                            one_time_keyboard=True,
-                                            resize_keyboard=True)
+letter_buttons = [InlineKeyboardButton(text=symb, callback_data=f'{symb}_symb_pressed') for symb in 'ABCDEFGHIJ']
 
-button_1: KeyboardButton = KeyboardButton(text=LEXICON_RU['rock'])
-button_2: KeyboardButton = KeyboardButton(text=LEXICON_RU['scissors'])
-button_3: KeyboardButton = KeyboardButton(text=LEXICON_RU['paper'])
+main_letter_keyboard = InlineKeyboardBuilder()
+main_letter_keyboard.add(change_to_player_pole_button)
+main_letter_keyboard = main_letter_keyboard.row(*letter_buttons, width=5).as_markup()
 
-# Создаем игровую клавиатуру с кнопками "Камень 🗿",
-# "Ножницы ✂" и "Бумага 📜" как список списков
-game_kb: ReplyKeyboardMarkup = ReplyKeyboardMarkup(
-                                    keyboard=[[button_1],
-                                              [button_2],
-                                              [button_3]],
-                                    resize_keyboard=True)
+number_buttons = [InlineKeyboardButton(text=num, callback_data=f'{num}_numb_pressed') for num in range(10)]
+
+main_number_keyboard = InlineKeyboardBuilder()
+main_number_keyboard.add(change_to_player_pole_button)
+main_number_keyboard = main_number_keyboard.row(*number_buttons, width=5).as_markup()
+
+# --------------------------------Side keyboard creation----------------------------------------------------------------
+change_to_bot_pole_button = InlineKeyboardButton(text='Открыть поле бота',
+                                                 callback_data='change_to_bot_pole_button_pressed')
+
+side_keyboard = InlineKeyboardMarkup(inline_keyboard=[[change_to_bot_pole_button]])
+
+# -----------------------------Reselect coordinates keyboard creation---------------------------------------------------
+
+reselect_coordinates_button = InlineKeyboardButton(text='Переопределить координаты:',
+                                                   callback_data='reselect_button_pressed')
+
+reselect_coordinates_keyboard = InlineKeyboardMarkup(inline_keyboard=[[reselect_coordinates_button]])
+
