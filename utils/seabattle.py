@@ -1,12 +1,13 @@
 from lexicon.lexicon_ru import LEXICON_RU
 from random import choice, randint
 from typing import Literal
+from states.states import Coordinates
 
 
 class Cell:
     def __init__(self, value='water'):
         self.status: str = value
-        self.is_open: bool = True
+        self.is_open: bool = False
 
     def __bool__(self):
         return self.is_open
@@ -115,8 +116,8 @@ def place_ships(ship_list: list) -> list[list[Cell]]:
 def modify_game_pole(game_pole: list[list[Cell]], ship_list: list[Ship]) -> None:
     for ship in ship_list:
         ship_area = define_ship_area(ship=ship, is_main=False)
-        for indx, coords in enumerate(ship_area):
-            game_pole[coords[1]][coords[0]].status = ship.decks[indx]
+        for index, coords in enumerate(ship_area):
+            game_pole[coords[1]][coords[0]].status = ship.decks[index]
 
 
 def translate_letter_to_number(letter: str) -> int:
@@ -134,10 +135,49 @@ def translate_letter_to_number(letter: str) -> int:
     return dictionary[letter]
 
 
-def verify_shot_coordinates(game_pole: list[list[Cell]], coordinates: list[int, int]) -> bool:
-    print(coordinates)
-    x, y = coordinates
-    return bool(game_pole[y][x])
+def verify_shot_coordinates(game_pole: list[list[Cell]], coordinates: Coordinates) -> bool:
+    return bool(game_pole[coordinates.y][coordinates.x])
+
+
+def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coordinates) -> bool:
+    is_hit = False
+
+    for ship in ship_list:
+        ship_area = define_ship_area(ship=ship, is_main=False)
+        if (coordinates.x, coordinates.y) in ship_area:
+            for index, coords in enumerate(ship_area):
+                if coords == coordinates:
+                    ship.decks[index] = 'destroyed_ship'
+                    game_pole[coords[1]][coords[0]].status = ship.decks[index]
+                    game_pole[coords[1]][coords[0]].is_open = True
+
+            is_hit = True
+            if check_death(ship):
+                mark_death_area(game_pole, ship)
+            break
+
+    if not is_hit:
+        game_pole[coordinates.y][coordinates.x].is_open = True
+    return is_hit
+
+
+def check_death(ship: Ship) -> bool:
+    return all(status == 'destroyed_ship' for status in ship.decks)
+
+
+def mark_death_area(game_pole: list[list[Cell]], ship: Ship) -> None:
+    ship_area = define_ship_area(ship=ship, is_main=True)
+
+    for coords in ship_area:
+        game_pole[coords[1]][coords[0]].is_open = True
+
+
+def generate_ai_shot() -> Coordinates:
+    pass
+
+
+
+
 
 
 

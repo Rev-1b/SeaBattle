@@ -6,8 +6,8 @@ from keyboards_package.keyboard_utils import (start_keyboard, placement_keyboard
                                               main_number_keyboard, side_keyboard, reselect_coordinates_keyboard)
 
 from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, verify_shot_coordinates,
-                             translate_letter_to_number)
-from states.states import users, user_registration
+                             translate_letter_to_number, shoot)
+from states.states import users, user_registration, Coordinates
 
 router: Router = Router()
 
@@ -34,7 +34,7 @@ async def process_help_command(message: Message):
 @router.callback_query(Text(text='start_button_pressed'))
 async def process_start_button(callback: CallbackQuery):
     game_pole = users[callback.from_user.id].user_game_pole
-    str_game_pole = show_game_pole(game_pole)
+    str_game_pole = show_game_pole(game_pole, is_player=True)
     await callback.message.edit_text(text=str_game_pole,
                                      reply_markup=placement_keyboard)
 
@@ -83,7 +83,7 @@ async def process_bot_pole_button_pressed(callback: CallbackQuery):
 @router.callback_query(Text(endswith='_symb_pressed'))
 async def process_any_symbol_pressed(callback: CallbackQuery):
     first_coordinate = translate_letter_to_number(callback.data.split('_')[0])
-    users[callback.from_user.id].shot_coordinates.append(first_coordinate)
+    users[callback.from_user.id].shot_coordinates.x = first_coordinate
 
     await callback.message.edit_text(text=callback.message.text,
                                      reply_markup=main_number_keyboard)
@@ -91,19 +91,34 @@ async def process_any_symbol_pressed(callback: CallbackQuery):
 
 @router.callback_query(Text(endswith='_numb_pressed'))
 async def process_any_number_pressed(callback: CallbackQuery):
-    users[callback.from_user.id].shot_coordinates.append(int(callback.data.split('_')[0]))
+    users[callback.from_user.id].shot_coordinates.y = int(callback.data.split('_')[0])
 
     user_game_pole = users[callback.from_user.id].user_game_pole
     user_shot_coordinates = users[callback.from_user.id].shot_coordinates
 
+    bot_game_pole = users[callback.from_user.id].bot_game_pole
+    bot_ship_list = users[callback.from_user.id].bot_ship_list
+
     if verify_shot_coordinates(user_game_pole, user_shot_coordinates):
         await callback.answer(text=LEXICON_RU['wrong_coordinates_selected'], show_alert=True)
-        users[callback.from_user.id].shot_coordinates = []
+
+        users[callback.from_user.id].shot_coordinates = Coordinates  # probably weak spot!!!! --------------------------
+
         await callback.message.edit_text(text=callback.message.text,
                                          reply_markup=reselect_coordinates_keyboard)
     else:
-        await callback.message.edit_text(text='[+] Process exterminated',
-                                         reply_markup=main_number_keyboard)
+        is_hit = shoot(bot_game_pole, bot_ship_list, user_shot_coordinates)
+
+        if is_hit:
+            await callback.answer(text='Прямое попадание! Развейте успех!')
+
+            str_bot_game_pole = show_game_pole(bot_game_pole)
+            await callback.message.edit_text(text=str_bot_game_pole,
+                                             reply_markup=main_letter_keyboard)
+        else:
+            await callback.answer(text='Промах! Ход переходит противнику!')
+
+
 
 
 @router.message()
