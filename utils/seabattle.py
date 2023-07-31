@@ -1,33 +1,8 @@
 from lexicon.lexicon_ru import LEXICON_RU
 from random import choice, randint
-from typing import Literal
-from states.states import Coordinates
 
-
-class Cell:
-    def __init__(self, value='water'):
-        self.status: str = value
-        self.is_open: bool = False
-
-    def __bool__(self):
-        return self.is_open
-
-
-class Ship:
-    def __init__(self, length, position, x=None, y=None):
-        self.length: int = length
-        self.position: Literal['horizontal', 'vertical'] = position
-        self.x: int = x
-        self.y: int = y
-        self.decks: list[str] = ['normal_ship' for _ in range(length)]
-        self.is_destroyed: bool = False
-
-    def set_coords(self, x, y):
-        self.x = x
-        self.y = y
-
-    def __bool__(self):
-        return self.is_destroyed
+from utils.classes import Cell, Ship
+from time import sleep
 
 
 def generate_empty_pole() -> list[list[Cell]]:
@@ -40,8 +15,8 @@ def show_game_pole(game_pole: list[list[Cell]], is_player=False) -> str:
         if is_player:
             united_row = "".join(LEXICON_RU[cell.status] for cell in row)
         else:
-            united_row = "".join(LEXICON_RU[cell.status] if cell else LEXICON_RU["hidden_cell"]for cell in row)
-        string_game_pole += f'\n{indx}  {united_row}'
+            united_row = "".join(LEXICON_RU[cell.status] if cell else LEXICON_RU["water"]for cell in row)
+        string_game_pole += f'\n{LEXICON_RU["side_info_line"][indx]}  {united_row}'
 
     return string_game_pole
 
@@ -135,18 +110,18 @@ def translate_letter_to_number(letter: str) -> int:
     return dictionary[letter]
 
 
-def verify_shot_coordinates(game_pole: list[list[Cell]], coordinates: Coordinates) -> bool:
-    return bool(game_pole[coordinates.y][coordinates.x])
+def verify_shot_coordinates(game_pole: list[list[Cell]], coordinates: list[int, int]) -> bool:
+    return game_pole[coordinates[1]][coordinates[0]].is_open
 
 
-def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coordinates) -> bool:
+def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: list[int, int]) -> bool:
     is_hit = False
 
     for ship in ship_list:
         ship_area = define_ship_area(ship=ship, is_main=False)
-        if (coordinates.x, coordinates.y) in ship_area:
+        if (coordinates[0], coordinates[1]) in ship_area:
             for index, coords in enumerate(ship_area):
-                if coords == coordinates:
+                if coords == (coordinates[0], coordinates[1]):
                     ship.decks[index] = 'destroyed_ship'
                     game_pole[coords[1]][coords[0]].status = ship.decks[index]
                     game_pole[coords[1]][coords[0]].is_open = True
@@ -157,7 +132,9 @@ def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coord
             break
 
     if not is_hit:
-        game_pole[coordinates.y][coordinates.x].is_open = True
+        game_pole[coordinates[1]][coordinates[0]].is_open = True
+        game_pole[coordinates[1]][coordinates[0]].status = 'opened_water'
+
     return is_hit
 
 
@@ -166,14 +143,35 @@ def check_death(ship: Ship) -> bool:
 
 
 def mark_death_area(game_pole: list[list[Cell]], ship: Ship) -> None:
+    ship.is_destroyed = True
     ship_area = define_ship_area(ship=ship, is_main=True)
 
     for coords in ship_area:
         game_pole[coords[1]][coords[0]].is_open = True
+        if game_pole[coords[1]][coords[0]].status == 'water':
+            game_pole[coords[1]][coords[0]].status = 'opened_water'
 
 
-def generate_ai_shot() -> Coordinates:
-    pass
+def give_random_coords(game_pole: list[list[Cell]]) -> list[int, int]:
+    x, y = randint(0, 9), randint(0, 9)
+    not_valid_coords = verify_shot_coordinates(game_pole, [x, y])
+
+    while not_valid_coords:
+        x, y = randint(0, 9), randint(0, 9)
+        not_valid_coords = verify_shot_coordinates(game_pole, [x, y])
+
+    return [x, y]
+
+
+def is_game_finished(ship_list: list[Ship]) -> bool:
+    return all(ship.is_destroyed for ship in ship_list)
+
+
+
+
+
+
+
 
 
 
