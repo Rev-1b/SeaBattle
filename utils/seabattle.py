@@ -4,12 +4,8 @@ from random import choice, randint
 from utils.classes import Cell, Ship, Coordinates
 
 
-def generate_empty_pole() -> list[list[Cell]]:
-    return [[Cell() for _ in range(10)] for _ in range(10)]
-
-
-def show_game_pole(game_pole: list[list[Cell]], is_player=False) -> str:
-    string_game_pole = f"{LEXICON_RU['crutch_line']}\n\n{LEXICON_RU['top_info_line']}"
+def show_game_pole(game_pole: list[list[Cell]], top_line: str, is_player=False) -> str:
+    string_game_pole = f"{LEXICON_RU['crutch_line']}\n\n{top_line}"
     for indx, row in enumerate(game_pole):
         if is_player:
             united_row = "".join(LEXICON_RU[cell.status] for cell in row)
@@ -31,18 +27,7 @@ def generate_ships_list() -> list[Ship]:
 
 def define_ship_area(ship: Ship, is_main: bool) -> Coordinates:
     """
-    Функция принимает экземпляр класса Ship и возвращает список кортежей с координатами ячеек игрового поля,
-    на которые "влияет" корабль. Дополнительный параметр is_main показывает, следует ли в область "влияния"
-    корабля включать все клетки вокруг него, или же стоит ограничиться клетками, которые корабль
-    занимает непосредственно. Стартовые координаты x, y у корабля всегда указывают на ЛЕВЫЙ ВЕРХНИЙ угол!,
-    соответственно отсчет палуб корабля будет начинаться именно оттуда.
-    В функции are_ships_intersected() эта функция будет вызываться для 2х кораблей, притом только один
-    из них будет вызван с параметром is_main=True. Это нужно для проверки пересечения кораблей. Есди в списках
-    проверяемых кораблей найдется хоть одно совпадение, это будет значить, что корабли пересекаются.
-
-    Если кто-нибудь будет ревьюить мой код, НЕ СМОТРИТЕ ЭТУ ФУНКЦИЮ!!! Руководствуйтесть прицнипом: Работает - не лезь!
-    Если разобраться, то тут все просто и логично, но как бы я не старался написать понятно для стороннего наблюдателя,
-    получилось... ЭТО.
+    You don't need to understand it, you just need to believe it.
     """
 
     x_shift = ship.length if ship.position == 'horizontal' else int(is_main)
@@ -57,7 +42,7 @@ def define_ship_area(ship: Ship, is_main: bool) -> Coordinates:
     lower_right_x = lower_right_x - int(not is_main and ship.position == 'horizontal') if lower_right_x < 10 else 9
     lower_right_y = lower_right_y - int(not is_main and ship.position == 'vertical') if lower_right_y < 10 else 9
 
-    tmp_area = []  # генерация координат всех клеток покрытия кораблем
+    tmp_area = []  # generation of coordinates of all cells "covered" by the ship
     for x in range(upper_left_x, lower_right_x + 1):
         for y in range(upper_left_y, lower_right_y + 1):
             tmp_area.append(Coordinates(x=x, y=y))
@@ -167,17 +152,4 @@ def give_random_coords(game_pole: list[list[Cell]]) -> Coordinates:
 
 def is_game_finished(ship_list: list[Ship]) -> bool:
     return all(ship.is_destroyed for ship in ship_list)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
