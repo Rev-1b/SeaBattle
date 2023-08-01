@@ -1,15 +1,18 @@
 from aiogram import Router
 from aiogram.filters import Command, CommandStart, Text
 from aiogram.types import Message, CallbackQuery
+
 from lexicon.lexicon_ru import LEXICON_RU
 from keyboards_package.keyboard_utils import (start_keyboard, placement_keyboard, main_letter_keyboard,
                                               main_number_keyboard, side_keyboard, reselect_coordinates_keyboard,
                                               empty_keyboard)
 
-from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, verify_shot_coordinates,
+from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, is_cell_already_open,
                              translate_letter_to_number, shoot, give_random_coords, is_game_finished)
 from states.states import users, user_registration
 from time import sleep
+from utils.classes import Coordinates
+
 
 router: Router = Router()
 
@@ -77,7 +80,7 @@ async def process_bot_pole_button_pressed(callback: CallbackQuery):
     str_bot_game_pole = show_game_pole(bot_game_pole)
     str_bot_game_pole = str_bot_game_pole + '\n\nВыберите координаты выстрела:'
 
-    keyboard = main_number_keyboard if users[callback.from_user.id].shot_coordinates else main_letter_keyboard
+    keyboard = main_letter_keyboard if users[callback.from_user.id].shot_coordinates else main_number_keyboard
 
     await callback.message.edit_text(text=str_bot_game_pole,
                                      reply_markup=keyboard)
@@ -86,7 +89,7 @@ async def process_bot_pole_button_pressed(callback: CallbackQuery):
 @router.callback_query(Text(endswith='_symb_pressed'))
 async def process_any_symbol_pressed(callback: CallbackQuery):
     first_coordinate = translate_letter_to_number(callback.data.split('_')[0])
-    users[callback.from_user.id].shot_coordinates.append(first_coordinate)
+    users[callback.from_user.id].shot_coordinates.x = first_coordinate
 
     await callback.message.edit_text(text=callback.message.text,
                                      reply_markup=main_number_keyboard)
@@ -94,7 +97,7 @@ async def process_any_symbol_pressed(callback: CallbackQuery):
 
 @router.callback_query(Text(endswith='_numb_pressed'))
 async def process_any_number_pressed(callback: CallbackQuery):
-    users[callback.from_user.id].shot_coordinates.append(int(callback.data.split('_')[0]) - 1)
+    users[callback.from_user.id].shot_coordinates.y = int(callback.data.split('_')[0]) - 1
 
     user_game_pole = users[callback.from_user.id].user_game_pole
     user_ship_list = users[callback.from_user.id].user_ship_list
@@ -102,12 +105,11 @@ async def process_any_number_pressed(callback: CallbackQuery):
 
     bot_game_pole = users[callback.from_user.id].bot_game_pole
     bot_ship_list = users[callback.from_user.id].bot_ship_list
-    print(show_game_pole(bot_game_pole, True))
 
-    if verify_shot_coordinates(bot_game_pole, user_shot_coordinates):
+    if is_cell_already_open(bot_game_pole, user_shot_coordinates):
         await callback.answer(text=LEXICON_RU['wrong_coordinates_selected'], show_alert=True)
 
-        users[callback.from_user.id].shot_coordinates = []
+        users[callback.from_user.id].shot_coordinates = Coordinates()
 
         await callback.message.edit_text(text=callback.message.text,
                                          reply_markup=reselect_coordinates_keyboard)
@@ -115,7 +117,7 @@ async def process_any_number_pressed(callback: CallbackQuery):
         is_hit = shoot(bot_game_pole, bot_ship_list, user_shot_coordinates)
 
         if is_hit:
-            users[callback.from_user.id].shot_coordinates = []
+            users[callback.from_user.id].shot_coordinates = Coordinates()
             str_bot_game_pole = show_game_pole(bot_game_pole)
 
             if is_game_finished(bot_ship_list):
@@ -125,7 +127,7 @@ async def process_any_number_pressed(callback: CallbackQuery):
                 await callback.message.edit_text(text=str_bot_game_pole,
                                                  reply_markup=main_letter_keyboard)
         else:
-            users[callback.from_user.id].shot_coordinates = []
+            users[callback.from_user.id].shot_coordinates = Coordinates()
             str_bot_game_pole = show_game_pole(bot_game_pole, is_player=False)
             await callback.message.edit_text(text=str_bot_game_pole,
                                              reply_markup=callback.message.reply_markup)

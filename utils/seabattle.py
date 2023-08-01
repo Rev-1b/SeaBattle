@@ -1,8 +1,7 @@
 from lexicon.lexicon_ru import LEXICON_RU
 from random import choice, randint
 
-from utils.classes import Cell, Ship
-from time import sleep
+from utils.classes import Cell, Ship, Coordinates
 
 
 def generate_empty_pole() -> list[list[Cell]]:
@@ -30,7 +29,7 @@ def generate_ships_list() -> list[Ship]:
     return result_list
 
 
-def define_ship_area(ship: Ship, is_main: bool) -> list[tuple[int]]:
+def define_ship_area(ship: Ship, is_main: bool) -> Coordinates:
     """
     Функция принимает экземпляр класса Ship и возвращает список кортежей с координатами ячеек игрового поля,
     на которые "влияет" корабль. Дополнительный параметр is_main показывает, следует ли в область "влияния"
@@ -49,11 +48,11 @@ def define_ship_area(ship: Ship, is_main: bool) -> list[tuple[int]]:
     x_shift = ship.length if ship.position == 'horizontal' else int(is_main)
     y_shift = ship.length if ship.position == 'vertical' else int(is_main)
 
-    upper_left_x = ship.x - int(is_main) if ship.x > 0 else 0
-    upper_left_y = ship.y - int(is_main) if ship.y > 0 else 0
+    upper_left_x = ship.coordinates.x - int(is_main) if ship.coordinates.x > 0 else 0
+    upper_left_y = ship.coordinates.y - int(is_main) if ship.coordinates.y > 0 else 0
 
-    lower_right_x = ship.x + x_shift
-    lower_right_y = ship.y + y_shift
+    lower_right_x = ship.coordinates.x + x_shift
+    lower_right_y = ship.coordinates.y + y_shift
 
     lower_right_x = lower_right_x - int(not is_main and ship.position == 'horizontal') if lower_right_x < 10 else 9
     lower_right_y = lower_right_y - int(not is_main and ship.position == 'vertical') if lower_right_y < 10 else 9
@@ -61,7 +60,7 @@ def define_ship_area(ship: Ship, is_main: bool) -> list[tuple[int]]:
     tmp_area = []  # генерация координат всех клеток покрытия кораблем
     for x in range(upper_left_x, lower_right_x + 1):
         for y in range(upper_left_y, lower_right_y + 1):
-            tmp_area.append((x, y))
+            tmp_area.append(Coordinates(x=x, y=y))
 
     return tmp_area
 
@@ -73,18 +72,19 @@ def are_ships_intersected(ship1, ship2) -> bool:
 
 
 def is_out_of_pole(ship: Ship) -> bool:
-    x_last = ship.x + ship.length if ship.position == 'horizontal' else ship.x
-    y_last = ship.y + ship.length if ship.position == 'vertical' else ship.y
+    x_last = ship.coordinates.x + ship.length if ship.position == 'horizontal' else ship.coordinates.x
+    y_last = ship.coordinates.y + ship.length if ship.position == 'vertical' else ship.coordinates.y
     return x_last >= 10 or y_last >= 10
 
 
 def place_ships(ship_list: list) -> list[list[Cell]]:
     temp_ship_list = generate_ships_list()
     for ship in temp_ship_list:
-        ship.set_coords(x=randint(0, 9), y=randint(0, 9))
+        ship.set_coords(Coordinates(x=randint(0, 9),
+                                    y=randint(0, 9)))
         while is_out_of_pole(ship) or any(are_ships_intersected(ship, obj) for obj in ship_list if ship != obj):
-            x, y = randint(0, 9), randint(0, 9)
-            ship.set_coords(x, y)
+            ship.set_coords(Coordinates(x=randint(0, 9),
+                                        y=randint(0, 9)))
         ship_list.append(ship)
 
 
@@ -92,7 +92,7 @@ def modify_game_pole(game_pole: list[list[Cell]], ship_list: list[Ship]) -> None
     for ship in ship_list:
         ship_area = define_ship_area(ship=ship, is_main=False)
         for index, coords in enumerate(ship_area):
-            game_pole[coords[1]][coords[0]].status = ship.decks[index]
+            game_pole[coords.y][coords.x].status = ship.decks[index]
 
 
 def translate_letter_to_number(letter: str) -> int:
@@ -110,21 +110,21 @@ def translate_letter_to_number(letter: str) -> int:
     return dictionary[letter]
 
 
-def verify_shot_coordinates(game_pole: list[list[Cell]], coordinates: list[int, int]) -> bool:
-    return game_pole[coordinates[1]][coordinates[0]].is_open
+def is_cell_already_open(game_pole: list[list[Cell]], coordinates: Coordinates) -> bool:
+    return game_pole[coordinates.y][coordinates.x].is_open
 
 
-def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: list[int, int]) -> bool:
+def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coordinates) -> bool:
     is_hit = False
 
     for ship in ship_list:
         ship_area = define_ship_area(ship=ship, is_main=False)
-        if (coordinates[0], coordinates[1]) in ship_area:
+        if coordinates in ship_area:
             for index, coords in enumerate(ship_area):
-                if coords == (coordinates[0], coordinates[1]):
+                if coords == coordinates:
                     ship.decks[index] = 'destroyed_ship'
-                    game_pole[coords[1]][coords[0]].status = ship.decks[index]
-                    game_pole[coords[1]][coords[0]].is_open = True
+                    game_pole[coords.y][coords.x].status = ship.decks[index]
+                    game_pole[coords.y][coords.x].is_open = True
 
             is_hit = True
             if check_death(ship):
@@ -132,8 +132,8 @@ def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: list[
             break
 
     if not is_hit:
-        game_pole[coordinates[1]][coordinates[0]].is_open = True
-        game_pole[coordinates[1]][coordinates[0]].status = 'opened_water'
+        game_pole[coordinates.y][coordinates.x].is_open = True
+        game_pole[coordinates.y][coordinates.x].status = 'opened_water'
 
     return is_hit
 
@@ -147,20 +147,22 @@ def mark_death_area(game_pole: list[list[Cell]], ship: Ship) -> None:
     ship_area = define_ship_area(ship=ship, is_main=True)
 
     for coords in ship_area:
-        game_pole[coords[1]][coords[0]].is_open = True
-        if game_pole[coords[1]][coords[0]].status == 'water':
-            game_pole[coords[1]][coords[0]].status = 'opened_water'
+        game_pole[coords.y][coords.x].is_open = True
+        if game_pole[coords.y][coords.x].status == 'water':
+            game_pole[coords.y][coords.x].status = 'opened_water'
 
 
-def give_random_coords(game_pole: list[list[Cell]]) -> list[int, int]:
+def give_random_coords(game_pole: list[list[Cell]]) -> Coordinates:
     x, y = randint(0, 9), randint(0, 9)
-    not_valid_coords = verify_shot_coordinates(game_pole, [x, y])
+    not_valid_coords = is_cell_already_open(game_pole, Coordinates(x=x,
+                                                                   y=y))
 
     while not_valid_coords:
         x, y = randint(0, 9), randint(0, 9)
-        not_valid_coords = verify_shot_coordinates(game_pole, [x, y])
+        not_valid_coords = is_cell_already_open(game_pole, Coordinates(x=x,
+                                                                       y=y))
 
-    return [x, y]
+    return Coordinates(x=x, y=y)
 
 
 def is_game_finished(ship_list: list[Ship]) -> bool:
