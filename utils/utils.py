@@ -5,7 +5,7 @@ from aiogram.types import BotCommand
 async def set_main_menu(bot: Bot):
     main_menu_commands = [
         BotCommand(command='/start',
-                   description='Не нажимать!'),
+                   description='Нажать для полного перезапуска!'),
         BotCommand(command='/rules',
                    description='Правила игры.'),
         BotCommand(command='/finish',

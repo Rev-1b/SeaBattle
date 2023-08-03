@@ -64,6 +64,7 @@ async def process_help_command(message: Message):
 @router.callback_query(Text(text='start_button_pressed'))
 async def process_start_button(callback: CallbackQuery):
     user_registration(callback.from_user.id)
+    users[callback.from_user.id].in_game = True
     game_pole = users[callback.from_user.id].user_game_pole
     str_game_pole = show_game_pole(game_pole=game_pole,
                                    top_line=LEXICON_RU['info_line_types'][
@@ -175,10 +176,10 @@ async def process_any_number_pressed(callback: CallbackQuery):
                                                   top_line=LEXICON_RU['info_line_types'][
                                                       user.game_pole_type],
                                                   is_player=True)
-
             await callback.message.edit_text(text=str_player_game_pole)
 
             bot_strike_list = bot_ai(user=user)
+
             str_game_pole = ''
             sleep(1.5)
 
@@ -187,8 +188,12 @@ async def process_any_number_pressed(callback: CallbackQuery):
 
                 sleep(1)
 
-            await callback.message.edit_text(text=str_game_pole,
-                                             reply_markup=side_keyboard)
+            if is_game_finished(user.user_ship_list):
+                await callback.message.edit_text(text=LEXICON_RU['bot_win'],
+                                                 reply_markup=start_keyboard)
+            else:
+                await callback.message.edit_text(text=str_game_pole,
+                                                 reply_markup=side_keyboard)
 
 
 @router.message()
