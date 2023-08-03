@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from utils.classes import Cell, Ship, Coordinates
+from utils.classes import Cell, Ship, Coordinates, MysteryShip
 
 
 @dataclass
@@ -11,6 +11,7 @@ class User:
     in_game: bool
     shot_coordinates: Coordinates
     game_pole_type: int
+    mystery_ship: MysteryShip
 
     def __bool__(self):
         return not self.in_game
@@ -33,7 +34,8 @@ def user_registration(user_id: int) -> None:
                           bot_ship_list=[],
                           in_game=False,
                           shot_coordinates=Coordinates(),
-                          game_pole_type=pole_type)
+                          game_pole_type=pole_type,
+                          mystery_ship=MysteryShip())
 
 
 

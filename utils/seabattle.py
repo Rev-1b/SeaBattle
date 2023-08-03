@@ -1,7 +1,7 @@
 from lexicon.lexicon_ru import LEXICON_RU
 from random import choice, randint
-
-from utils.classes import Cell, Ship, Coordinates
+from states.states import User
+from utils.classes import Cell, Ship, Coordinates, ShootOutput, MysteryShip
 
 
 def show_game_pole(game_pole: list[list[Cell]], top_line: str, is_player=False) -> str:
@@ -99,8 +99,9 @@ def is_cell_already_open(game_pole: list[list[Cell]], coordinates: Coordinates) 
     return game_pole[coordinates.y][coordinates.x].is_open
 
 
-def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coordinates) -> bool:
+def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coordinates) -> ShootOutput:
     is_hit = False
+    is_destroyed = False
 
     for ship in ship_list:
         ship_area = define_ship_area(ship=ship, is_main=False)
@@ -113,6 +114,7 @@ def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coord
 
             is_hit = True
             if check_death(ship):
+                is_destroyed = True
                 mark_death_area(game_pole, ship)
             break
 
@@ -120,7 +122,8 @@ def shoot(game_pole: list[list[Cell]], ship_list: list[Ship], coordinates: Coord
         game_pole[coordinates.y][coordinates.x].is_open = True
         game_pole[coordinates.y][coordinates.x].status = 'opened_water'
 
-    return is_hit
+    return ShootOutput(is_hit=is_hit,
+                       is_destroyed=is_destroyed)
 
 
 def check_death(ship: Ship) -> bool:
@@ -153,3 +156,186 @@ def give_random_coords(game_pole: list[list[Cell]]) -> Coordinates:
 def is_game_finished(ship_list: list[Ship]) -> bool:
     return all(ship.is_destroyed for ship in ship_list)
 
+
+def bot_ai(user: User) -> list[str]:
+    container = []
+
+    if user.mystery_ship:
+        if user.mystery_ship.possible_location:
+            container.extend(run_phase_3_4(user=user))
+        else:
+            container.extend(run_phase_2_3_4(user=user))
+
+    else:                                                           # Phase 1 start ------------------------------------
+        bot_shot_coords = give_random_coords(user.user_game_pole)
+        shoot_output1 = shoot(game_pole=user.user_game_pole,
+                              ship_list=user.user_ship_list,
+                              coordinates=bot_shot_coords)
+        str_pole = show_game_pole(game_pole=user.user_game_pole,
+                                  top_line=LEXICON_RU['info_line_types'][
+                                      user.game_pole_type],
+                                  is_player=True)
+        container.append(str_pole)
+
+        if shoot_output1.is_hit and not shoot_output1.is_destroyed:  # Phase 2 start -----------------------------------
+            user.mystery_ship.first_hit_coords = bot_shot_coords
+            user.mystery_ship.around_hit_area = give_around_hit_area(coordinates=bot_shot_coords,
+                                                                     user=user)
+            random_coords = choice(user.mystery_ship.around_hit_area)
+            user.mystery_ship.around_hit_area.remove(random_coords)
+
+            shoot_output2 = shoot(game_pole=user.user_game_pole,
+                                  ship_list=user.user_ship_list,
+                                  coordinates=random_coords)
+            str_pole = show_game_pole(game_pole=user.user_game_pole,
+                                      top_line=LEXICON_RU['info_line_types'][
+                                          user.game_pole_type],
+                                      is_player=True)
+            container.append(str_pole)
+
+            if shoot_output2.is_hit and not shoot_output2.is_destroyed:  # Phase 3 start -------------------------------
+                ship_possible_area = give_ship_possible_area(game_pole=user.user_game_pole,
+                                                             first_hit_coords=user.mystery_ship.first_hit_coords,
+                                                             second_hit_coords=random_coords)
+                user.mystery_ship.possible_location = ship_possible_area
+
+                shot_coords = ship_possible_area.pop(0)
+                shoot_output3 = shoot(game_pole=user.user_game_pole,
+                                      ship_list=user.user_ship_list,
+                                      coordinates=shot_coords)
+                str_pole = show_game_pole(game_pole=user.user_game_pole,
+                                          top_line=LEXICON_RU['info_line_types'][
+                                              user.game_pole_type],
+                                          is_player=True)
+                container.append(str_pole)
+
+                if shoot_output3.is_hit and not shoot_output3.is_destroyed:  # Phase 4 start ---------------------------
+                    shot_coords = ship_possible_area.pop(0)
+                    shoot_output4 = shoot(game_pole=user.user_game_pole,
+                                          ship_list=user.user_ship_list,
+                                          coordinates=shot_coords)
+
+                    str_pole = show_game_pole(game_pole=user.user_game_pole,
+                                              top_line=LEXICON_RU['info_line_types'][
+                                                  user.game_pole_type],
+                                              is_player=True)
+                    container.append(str_pole)
+
+                    if shoot_output4.is_destroyed:
+                        user.mystery_ship = MysteryShip()
+                        container.extend(bot_ai(user=user))  # Phase 4 end ---------------------------------------------
+
+                else:
+                    if shoot_output3.is_destroyed:
+                        user.mystery_ship = MysteryShip()
+                        container.extend(bot_ai(user=user))  # Phase 3 end ---------------------------------------------
+
+            else:
+                if shoot_output2.is_destroyed:
+                    user.mystery_ship = MysteryShip()
+                    container.extend(bot_ai(user=user))  # Phase 2 end -------------------------------------------------
+
+        else:
+            if shoot_output1.is_destroyed:
+                user.mystery_ship = MysteryShip()
+                container.extend(bot_ai(user=user))  # Part 1 end ------------------------------------------------------
+
+    return container
+
+
+def give_around_hit_area(coordinates: Coordinates, user: User) -> list[Coordinates]:
+    x, y = coordinates.x, coordinates.y
+    around_hit_area = []
+    temp_hit_area = [Coordinates(x=x - 1, y=y),
+                     Coordinates(x=x + 1, y=y),
+                     Coordinates(x=x, y=y - 1),
+                     Coordinates(x=x, y=y + 1)]
+
+    for coords in temp_hit_area:
+        if not is_cell_already_open(game_pole=user.user_game_pole,
+                                    coordinates=coords):
+            around_hit_area.append(coords)
+
+    return around_hit_area
+
+
+def give_ship_possible_area(game_pole: list[list[Cell]], first_hit_coords: Coordinates,
+                            second_hit_coords: Coordinates) -> list[Coordinates]:
+    difference = second_hit_coords - first_hit_coords
+
+    x_shift = difference['x_diff']
+    y_shift = difference['y_diff']
+    ship_possible_area = []
+
+    for shift in range(1, 3):
+        temp_coords = Coordinates(x=second_hit_coords.x + shift * x_shift,
+                                  y=second_hit_coords.y + shift * y_shift)
+        ship_possible_area.append(temp_coords)
+        if game_pole[temp_coords.y][temp_coords.x]:
+            break
+
+    for shift in range(1, 3):
+        temp_coords = Coordinates(x=first_hit_coords.x - shift * x_shift,
+                                  y=first_hit_coords.y - shift * y_shift)
+        ship_possible_area.append(temp_coords)
+        if game_pole[temp_coords.y][temp_coords.x]:
+            break
+
+    return ship_possible_area
+
+
+def run_phase_3_4(user: User) -> list[str]:
+    container = []
+    shot_coords = user.mystery_ship.possible_location.pop(0)
+    shoot_output3 = shoot(game_pole=user.user_game_pole,
+                          ship_list=user.user_ship_list,
+                          coordinates=shot_coords)
+    str_pole = show_game_pole(game_pole=user.user_game_pole,
+                              top_line=LEXICON_RU['info_line_types'][
+                                  user.game_pole_type],
+                              is_player=True)
+    container.append(str_pole)
+
+    if shoot_output3.is_hit and not shoot_output3.is_destroyed:
+        shot_coords = user.mystery_ship.possible_location.pop(0)
+        shoot_output4 = shoot(game_pole=user.user_game_pole,
+                              ship_list=user.user_ship_list,
+                              coordinates=shot_coords)
+
+        str_pole = show_game_pole(game_pole=user.user_game_pole,
+                                  top_line=LEXICON_RU['info_line_types'][
+                                      user.game_pole_type],
+                                  is_player=True)
+        container.append(str_pole)
+
+        if shoot_output4.is_destroyed:
+            user.mystery_ship = MysteryShip()
+            container.extend(bot_ai(user=user))
+
+    else:
+        if shoot_output3.is_destroyed:
+            user.mystery_ship = MysteryShip()
+            container.extend(bot_ai(user=user))
+
+
+def run_phase_2_3_4(user: User) -> list[str]:
+    container = []
+    random_coords = choice(user.mystery_ship.around_hit_area)
+    user.mystery_ship.around_hit_area.remove(random_coords)
+
+    shoot_output2 = shoot(game_pole=user.user_game_pole,
+                          ship_list=user.user_ship_list,
+                          coordinates=random_coords)
+    str_pole = show_game_pole(game_pole=user.user_game_pole,
+                              top_line=LEXICON_RU['info_line_types'][
+                                  user.game_pole_type],
+                              is_player=True)
+    container.append(str_pole)
+
+    if shoot_output2.is_hit and not shoot_output2.is_destroyed:
+        ship_possible_area = give_ship_possible_area(game_pole=user.user_game_pole,
+                                                     first_hit_coords=user.mystery_ship.first_hit_coords,
+                                                     second_hit_coords=random_coords)
+        user.mystery_ship.possible_location = ship_possible_area
+
+        container.extend(run_phase_3_4(user))

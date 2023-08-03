@@ -7,10 +7,13 @@ class Coordinates:
         self.y: int = y
 
     def __bool__(self):
-        return self.x is None and self.y is None
+        return not (self.x is None and self.y is None)
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
+
+    def __sub__(self, other):
+        return {'x_diff': self.x - other.x, 'y_diff': self.y - other.y}
 
 
 class Cell:
@@ -35,4 +38,21 @@ class Ship:
 
     def __bool__(self):
         return self.is_destroyed
+
+
+class ShootOutput:
+    def __init__(self, is_hit, is_destroyed):
+        self.is_hit = is_hit
+        self.is_destroyed = is_destroyed
+
+
+class MysteryShip:
+    def __init__(self):
+        self.first_hit_coords: Coordinates = Coordinates()
+        self.around_hit_area: list[Coordinates] = []
+        self.possible_location: list[Coordinates] = []
+
+    def __bool__(self):
+        return bool(self.first_hit_coords)
+
 

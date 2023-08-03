@@ -8,7 +8,7 @@ from keyboards_package.keyboard_utils import (start_keyboard, choose_pole_type_k
                                               side_keyboard, reselect_coordinates_keyboard)
 
 from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, is_cell_already_open,
-                             translate_letter_to_number, shoot, give_random_coords, is_game_finished)
+                             translate_letter_to_number, shoot, is_game_finished, bot_ai)
 from states.states import users, user_registration
 from time import sleep
 from utils.classes import Coordinates
@@ -116,7 +116,7 @@ async def process_bot_pole_button_pressed(callback: CallbackQuery):
 
     str_bot_game_pole = str_bot_game_pole + '\n\nВыберите координаты выстрела:\n\n '
 
-    keyboard = main_letter_keyboard if user.shot_coordinates else main_number_keyboard
+    keyboard = main_letter_keyboard if not user.shot_coordinates else main_number_keyboard
 
     await callback.message.edit_text(text=str_bot_game_pole,
                                      reply_markup=keyboard)
@@ -136,7 +136,6 @@ async def process_any_symbol_pressed(callback: CallbackQuery):
 @router.callback_query(Text(endswith='_numb_pressed'))
 async def process_any_number_pressed(callback: CallbackQuery):
     user = users[callback.from_user.id]
-
     user.shot_coordinates.y = int(callback.data.split('_')[0]) - 1
 
     if is_cell_already_open(user.bot_game_pole, user.shot_coordinates):
@@ -147,16 +146,14 @@ async def process_any_number_pressed(callback: CallbackQuery):
         await callback.message.edit_text(text=callback.message.text,
                                          reply_markup=reselect_coordinates_keyboard)
     else:
-        is_hit = shoot(game_pole=user.bot_game_pole,
-                       ship_list=user.bot_ship_list,
-                       coordinates=user.shot_coordinates)
-
-        if is_hit:
+        shoot_output = shoot(game_pole=user.bot_game_pole,
+                             ship_list=user.bot_ship_list,
+                             coordinates=user.shot_coordinates)
+        if shoot_output.is_hit:
             user.shot_coordinates = Coordinates()
             str_bot_game_pole = show_game_pole(game_pole=user.bot_game_pole,
                                                top_line=LEXICON_RU['info_line_types'][
                                                    user.game_pole_type])
-
             if is_game_finished(user.bot_ship_list):
                 await callback.message.edit_text(text=LEXICON_RU['player_win'],
                                                  reply_markup=start_keyboard)
@@ -179,56 +176,22 @@ async def process_any_number_pressed(callback: CallbackQuery):
                                                       user.game_pole_type],
                                                   is_player=True)
 
-            await callback.message.edit_text(text=str_player_game_pole)  # Probably weak spot!!!
+            await callback.message.edit_text(text=str_player_game_pole)
 
-            sleep(1)
+            bot_strike_list = bot_ai(user=user)
+            str_game_pole = ''
+            sleep(1.5)
 
-            bot_shot_coords = give_random_coords(user.user_game_pole)
-            is_bot_hit = shoot(game_pole=user.user_game_pole,
-                               ship_list=user.user_ship_list,
-                               coordinates=bot_shot_coords)
-
-            while is_bot_hit:
-                str_player_game_pole = show_game_pole(game_pole=user.user_game_pole,
-                                                      top_line=LEXICON_RU['info_line_types'][
-                                                          user.game_pole_type],
-                                                      is_player=True)
+            for str_game_pole in bot_strike_list:
+                await callback.message.edit_text(text=str_game_pole)
 
                 sleep(1)
 
-                await callback.message.edit_text(text=str_player_game_pole)
-
-                bot_shot_coords = give_random_coords(user.user_game_pole)
-                is_bot_hit = shoot(game_pole=user.user_game_pole,
-                                   ship_list=user.user_ship_list,
-                                   coordinates=bot_shot_coords)
-
-                sleep(1)
-
-            str_player_game_pole = show_game_pole(game_pole=user.user_game_pole,
-                                                  top_line=LEXICON_RU['info_line_types'][
-                                                      user.game_pole_type],
-                                                  is_player=True)
-
-            await callback.message.edit_text(text=str_player_game_pole,
+            await callback.message.edit_text(text=str_game_pole,
                                              reply_markup=side_keyboard)
 
 
 @router.message()
 async def process_unexpected_input(message: Message):
     await message.answer(text=LEXICON_RU['wrong_input'])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
