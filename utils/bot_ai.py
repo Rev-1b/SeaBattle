@@ -1,8 +1,10 @@
-from states.states import User
-from utils.seabattle import is_game_finished, give_random_coords, show_game_pole, shoot, is_cell_already_open
-from lexicon.lexicon_ru import LEXICON_RU
-from utils.classes import MysteryShip, Coordinates, Cell
 from random import choice
+from states.states import User
+from lexicon.lexicon_ru import LEXICON_RU
+
+from utils.seabattle import give_random_coords, show_game_pole, shoot, is_cell_already_open
+from utils.checkers import is_game_finished
+from utils.classes import MysteryShip, Coordinates, Cell
 
 
 def bot_ai(user: User) -> list[str]:

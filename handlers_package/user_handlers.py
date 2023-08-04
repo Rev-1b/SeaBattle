@@ -7,12 +7,14 @@ from keyboards_package.keyboard_utils import (start_keyboard, choose_pole_type_k
                                               placement_keyboard, main_letter_keyboard, main_number_keyboard,
                                               side_keyboard, reselect_coordinates_keyboard)
 
-from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, is_cell_already_open,
-                             translate_letter_to_number, shoot, is_game_finished)
+from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, is_cell_already_open, shoot)
 from utils.bot_ai import bot_ai
+from utils.classes import Coordinates
+from utils.utils import translate_letter_to_number
+from utils.checkers import is_game_finished
+
 from states.states import users, user_registration
 from time import sleep
-from utils.classes import Coordinates
 
 
 router: Router = Router()
