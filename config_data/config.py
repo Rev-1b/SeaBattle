@@ -26,4 +26,3 @@ def load_config() -> Config:
     )
 
     return config
-

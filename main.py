@@ -3,7 +3,7 @@ import asyncio
 from config_data.config import Config, load_config
 from aiogram import Bot, Dispatcher
 from handlers_package import user_handlers
-from utils.utils import set_main_menu
+from keyboards_package.set_menu import set_main_menu
 
 
 async def main():
@@ -20,11 +20,3 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
-
-
-
-
-
-
-
-

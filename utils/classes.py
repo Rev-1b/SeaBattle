@@ -54,5 +54,3 @@ class MysteryShip:
 
     def __bool__(self):
         return bool(self.first_hit_coords)
-
-

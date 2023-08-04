@@ -92,5 +92,3 @@ def give_random_coords(game_pole: list[list[Cell]]) -> Coordinates:
                                                                        y=y))
 
     return Coordinates(x=x, y=y)
-
-

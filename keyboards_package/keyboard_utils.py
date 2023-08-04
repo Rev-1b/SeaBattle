@@ -60,6 +60,3 @@ reselect_coordinates_keyboard = InlineKeyboardMarkup(inline_keyboard=[[_reselect
 # --------------------------------------------Empty keyboard------------------------------------------------------------
 
 empty_keyboard = InlineKeyboardMarkup(inline_keyboard=[[]])
-
-
-

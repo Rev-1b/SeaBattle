@@ -36,8 +36,3 @@ def user_registration(user_id: int) -> None:
                           shot_coordinates=Coordinates(),
                           game_pole_type=pole_type,
                           mystery_ship=MysteryShip())
-
-
-
-
-

@@ -13,11 +13,18 @@ from utils.classes import Coordinates
 from utils.utils import translate_letter_to_number
 from utils.checkers import is_game_finished
 
-from states.states import users, user_registration
+from states.states import users, user_registration, User
 from time import sleep
 
 
 router: Router = Router()
+
+
+def define_user(handler):
+    async def wrapper(message_back: CallbackQuery | Message):
+        user = users[message_back.from_user.id]
+        await handler(message_back, user)
+    return wrapper
 
 
 @router.message(CommandStart())
@@ -30,9 +37,9 @@ async def process_start_command(message: Message):
 
 
 @router.callback_query(Text(text=['start_choose_process_button_pressed', 'next_button_pressed']))
-async def process_choose_pole_type_button_pressed(callback: CallbackQuery):
+@define_user
+async def process_choose_pole_type_button_pressed(callback: CallbackQuery, user: User):
     message_text = LEXICON_RU['chose_pole_type_head_line']
-    user = users[callback.from_user.id]
     empty_game_pole = user.user_game_pole
 
     user.game_pole_type += 1
@@ -50,9 +57,10 @@ async def process_choose_pole_type_button_pressed(callback: CallbackQuery):
 
 
 @router.message(Command(commands=['finish']))
-async def process_finish_command(message: Message):
-    if users[message.from_user.id].in_game:
-        users[message.from_user.id].in_game = False
+@define_user
+async def process_finish_command(message: Message, user: User):
+    if user.in_game:
+        user.in_game = False
         await message.answer(text=LEXICON_RU['game_finishing'],
                              reply_markup=start_keyboard)
     else:
@@ -67,11 +75,12 @@ async def process_help_command(message: Message):
 @router.callback_query(Text(text='start_button_pressed'))
 async def process_start_button(callback: CallbackQuery):
     user_registration(callback.from_user.id)
-    users[callback.from_user.id].in_game = True
-    game_pole = users[callback.from_user.id].user_game_pole
+    user = users[callback.from_user.id]
+    user.in_game = True
+    game_pole = user.user_game_pole
     str_game_pole = show_game_pole(game_pole=game_pole,
                                    top_line=LEXICON_RU['info_line_types'][
-                                       users[callback.from_user.id].game_pole_type],
+                                       user.game_pole_type],
                                    is_player=True)
 
     await callback.message.edit_text(text=str_game_pole,
@@ -79,9 +88,8 @@ async def process_start_button(callback: CallbackQuery):
 
 
 @router.callback_query(Text(text='auto_placement_button_pressed'))
-async def process_auto_placement_button(callback: CallbackQuery):
-    user = users[callback.from_user.id]
-
+@define_user
+async def process_auto_placement_button(callback: CallbackQuery, user: User):
     place_ships(user.user_ship_list)
     place_ships(user.bot_ship_list)
 
@@ -98,9 +106,8 @@ async def process_auto_placement_button(callback: CallbackQuery):
 
 
 @router.callback_query(Text(text='change_to_player_pole_button_pressed'))
-async def process_change_to_player_button(callback: CallbackQuery):
-    user = users[callback.from_user.id]
-
+@define_user
+async def process_change_to_player_button(callback: CallbackQuery, user: User):
     str_user_game_pole = show_game_pole(game_pole=user.user_game_pole,
                                         top_line=LEXICON_RU['info_line_types'][
                                             user.game_pole_type],
@@ -111,9 +118,8 @@ async def process_change_to_player_button(callback: CallbackQuery):
 
 
 @router.callback_query(Text(text=('change_to_bot_pole_button_pressed', 'reselect_button_pressed')))
-async def process_bot_pole_button_pressed(callback: CallbackQuery):
-    user = users[callback.from_user.id]
-
+@define_user
+async def process_bot_pole_button_pressed(callback: CallbackQuery, user: User):
     str_bot_game_pole = show_game_pole(game_pole=user.bot_game_pole,
                                        top_line=LEXICON_RU['info_line_types'][
                                             user.game_pole_type])
@@ -127,9 +133,8 @@ async def process_bot_pole_button_pressed(callback: CallbackQuery):
 
 
 @router.callback_query(Text(endswith='_symb_pressed'))
-async def process_any_symbol_pressed(callback: CallbackQuery):
-    user = users[callback.from_user.id]
-
+@define_user
+async def process_any_symbol_pressed(callback: CallbackQuery, user: User):
     first_coordinate = translate_letter_to_number(callback.data.split('_')[0])
     user.shot_coordinates.x = first_coordinate
 
@@ -138,8 +143,8 @@ async def process_any_symbol_pressed(callback: CallbackQuery):
 
 
 @router.callback_query(Text(endswith='_numb_pressed'))
-async def process_any_number_pressed(callback: CallbackQuery):
-    user = users[callback.from_user.id]
+@define_user
+async def process_any_number_pressed(callback: CallbackQuery, user: User):
     user.shot_coordinates.y = int(callback.data.split('_')[0]) - 1
 
     if is_cell_already_open(user.bot_game_pole, user.shot_coordinates):
@@ -174,7 +179,7 @@ async def process_any_number_pressed(callback: CallbackQuery):
 
             await callback.message.edit_text(text=str_bot_game_pole,
                                              reply_markup=callback.message.reply_markup)
-            sleep(2.5)
+            sleep(1)
 
             str_player_game_pole = show_game_pole(game_pole=user.user_game_pole,
                                                   top_line=LEXICON_RU['info_line_types'][
