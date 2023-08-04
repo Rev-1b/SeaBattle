@@ -8,7 +8,8 @@ from keyboards_package.keyboard_utils import (start_keyboard, choose_pole_type_k
                                               side_keyboard, reselect_coordinates_keyboard)
 
 from utils.seabattle import (show_game_pole, place_ships, modify_game_pole, is_cell_already_open,
-                             translate_letter_to_number, shoot, is_game_finished, bot_ai)
+                             translate_letter_to_number, shoot, is_game_finished)
+from utils.bot_ai import bot_ai
 from states.states import users, user_registration
 from time import sleep
 from utils.classes import Coordinates
@@ -156,6 +157,7 @@ async def process_any_number_pressed(callback: CallbackQuery):
                                                top_line=LEXICON_RU['info_line_types'][
                                                    user.game_pole_type])
             if is_game_finished(user.bot_ship_list):
+                user.in_game = False
                 await callback.message.edit_text(text=LEXICON_RU['player_win'],
                                                  reply_markup=start_keyboard)
             else:
@@ -170,7 +172,7 @@ async def process_any_number_pressed(callback: CallbackQuery):
 
             await callback.message.edit_text(text=str_bot_game_pole,
                                              reply_markup=callback.message.reply_markup)
-            sleep(1)
+            sleep(2.5)
 
             str_player_game_pole = show_game_pole(game_pole=user.user_game_pole,
                                                   top_line=LEXICON_RU['info_line_types'][
@@ -181,14 +183,15 @@ async def process_any_number_pressed(callback: CallbackQuery):
             bot_strike_list = bot_ai(user=user)
 
             str_game_pole = ''
-            sleep(1.5)
+            sleep(2.5)
 
             for str_game_pole in bot_strike_list:
                 await callback.message.edit_text(text=str_game_pole)
 
-                sleep(1)
+                sleep(2.5)
 
             if is_game_finished(user.user_ship_list):
+                user.in_game = False
                 await callback.message.edit_text(text=LEXICON_RU['bot_win'],
                                                  reply_markup=start_keyboard)
             else:
