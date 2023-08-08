@@ -8,6 +8,10 @@ from utils.classes import MysteryShip, Coordinates, Cell
 
 
 def bot_ai(user: User) -> list[str]:
+    """
+    Terribly huge function, through recursion, collecting the states of the playing field in N moves of the bot and
+    returning a list of these fields.
+    """
     container = []
 
     if user.mystery_ship:
@@ -95,6 +99,9 @@ def _give_ship_possible_area(game_pole: list[list[Cell]], first_hit_coords: Coor
 
 
 def _run_phase_3_4(user: User) -> list[str]:
+    """
+    Only triggers if the player has a ship that has already had 2 hits and is still afloat.
+    """
     sub_container = []
     shot_coords = user.mystery_ship.possible_location.pop(0)
     shoot_output3 = shoot(game_pole=user.user_game_pole,
@@ -131,6 +138,9 @@ def _run_phase_3_4(user: User) -> list[str]:
 
 
 def _run_phase_2_3_4(user: User) -> list[str]:
+    """
+    Срабатывает только в случае, если у игрока есть корабль, в который попали только один раз.
+    """
     sub_container = []
     random_coords = choice(user.mystery_ship.around_hit_area)
     user.mystery_ship.around_hit_area.remove(random_coords)

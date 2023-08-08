@@ -1,5 +1,4 @@
 SeaBattle
 
-This repository was created by low-skill python developer in order to understand main features of Git and GitHub.
-It will work with my new project - SeaBattle game as a Telegram Bot.
-For now it is nothyng but a training material, but who knows?
+Unfortunately, my skill is not enough to write "clean code", so many functions are too big. Perhaps in the future,
+I will rewrite everything here, but this is far from a fact.

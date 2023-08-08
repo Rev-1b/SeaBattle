@@ -209,4 +209,3 @@ async def process_any_number_pressed(callback: CallbackQuery, user: User):
 @router.message()
 async def process_unexpected_input(message: Message):
     await message.answer(text=LEXICON_RU['wrong_input'])
-
